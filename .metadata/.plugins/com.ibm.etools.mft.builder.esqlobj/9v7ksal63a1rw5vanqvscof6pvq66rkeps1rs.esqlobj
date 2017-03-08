@@ -1,0 +1,161 @@
+/*EATE FUNCTION Main() RETURNS BOOLE*/
+	BEGIN
+		 CALL CopyMessageHeaders();
+		 CALL CopyEntireMessage();
+		 DECLARE ExceptionMsg CHARACTER '' ;
+		
+		 SET  OutputLocalEnvironment = InputLocalEnvironment ;
+		 SET Environment.Variables.ExceptionData.ParserFlag = FALSE ;
+		
+		IF EXISTS(InputExceptionList.*[]) THEN
+			CALL ExtractExceptionList(InputExceptionList, ExceptionMsg);
+		END IF;
+		SET Environment.Variables.ExceptionData.ExceptionList =  ExceptionMsg ;
+		IF Environment.Variables.ExceptionData.ERROR_TYPE <> 'ParserException' AND FIELDNAME(InputRoot.*[<]) IN ('MRM', 'XMLNSC', 'XMLNS', 'XML', 'SOAP', 'jms.map', 'jms.stream', 'MIME', 'BLOB', 'IDOC', 'JSON', 'DFDL') THEN
+			
+			DECLARE messageset CHARACTER FIELDVALUE(InputRoot.Properties.MessageSet) ;
+			DECLARE messagetype CHARACTER FIELDVALUE(InputRoot.Properties.MessageType) ;
+			
+			IF (messageset <> '' OR messageset <> null) OR (messagetype <> '' OR messagetype <> null) THEN
+				SET Environment.Variables.ExceptionData.ParserFlag = TRUE;
+			END IF; 
+		END IF;
+		
+		RETURN TRUE;
+	END;
+CREATE PROCEDURE ExtractExceptionList(IN InputExceptionList REFERENCE, OUT ExceptionMsg CHARACTER ) BEGIN
+		
+		DECLARE Diagnostics, DiagnosticInfo,LastTraceText, BIPMessage, DiagnosticText, ErrorType, ErrorCategory, ErrorSource, 
+		LastTracedLocation, LastTracedText , ErrorText, TracedName,TracedCatalog,TracedSeverity, TracedNumber,
+		LastTraceLocation, LastTracedName, LastTracedCatalog  CHARACTER '';
+		DECLARE LastTracedSeverity,LastTracedNumber, Width  INTEGER 0;
+--		DECLARE CR CHAR CAST(CAST('X''0A''' AS BLOB) AS CHAR CCSID 1208 );
+		
+		SET Width = 1;
+		DECLARE Path REFERENCE TO InputExceptionList.*[Width];
+		SET ErrorCategory = FieldName(Path);
+		WHILE LastMove(Path) DO
+			WHILE FieldName(Path) IN ('FatalException','RecoverableException','ConfigurationException','SecurityException','ParserException',
+				'ConversionException','DatabaseException','UserException','CastException','MessageException','SqlException','SocketException',
+				'SocketTimeoutException','UnknownException') DO
+
+				IF NOT (FieldName(Path) = ErrorType) THEN
+					SET ErrorType = FieldName(Path);
+				END IF;
+				IF Length(Path.Name) > 0 THEN
+					IF NOT (LastTracedName= Path.Name) THEN
+						IF Length(TracedName)> 0 THEN
+							SET TracedName = TracedName || ' | ' || SUBSTRING( Path.Name FROM 1 FOR (POSITION('#' IN  Path.Name) - 1)); 
+							SET LastTracedName = Path.Name;
+						ELSE 
+							SET TracedName = SUBSTRING( Path.Name FROM 1 FOR (POSITION('#' IN  Path.Name) - 1)); 
+							SET LastTracedName = Path.Name;
+						END IF;
+					END IF;
+				END IF;
+				IF Length(Path.Catalog) > 0 THEN
+					IF NOT (LastTracedCatalog= Path.Catalog) THEN
+						IF Length(TracedCatalog)> 0 THEN
+							SET TracedCatalog = TracedCatalog || ' | '|| Path.Catalog ;
+							SET LastTracedCatalog = Path.Catalog;
+						ELSE
+							SET TracedCatalog = Path.Catalog ;
+							SET LastTracedCatalog = Path.Catalog;
+						END IF;
+					END IF;
+				END IF;
+				IF Path.Severity > 0 THEN
+					IF NOT (LastTracedSeverity= Path.Severity) THEN
+						IF Length(TracedSeverity)> 0 THEN
+							SET TracedSeverity = TracedSeverity || ' | ' || CAST(Path.Severity AS CHAR) ;
+							SET LastTracedSeverity = Path.Severity;
+						ELSE 
+							SET TracedSeverity =  CAST(Path.Severity AS CHAR) ;
+							SET LastTracedSeverity = Path.Severity;
+						END IF;
+					END IF;
+				END IF;
+				IF Path.Number > 0 THEN
+					IF NOT (LastTracedNumber= Path.Number) THEN
+						SET TracedNumber = CAST(Path.Number AS CHARACTER) ;
+						SET LastTracedNumber = Path.Number;
+					END IF;
+				END IF;		
+				SET BIPMessage = TracedCatalog ||' | ' || TracedNumber;
+				
+				IF Length(Path.Label) > 0 THEN
+					IF NOT (LastTraceLocation = Path.Label) THEN
+						SET ErrorSource = SUBSTRING(Path.Label FROM (POSITION('.' IN Path.Label) + 1)) ;
+						SET LastTracedLocation = Path.Label;
+					END IF;
+				END IF;
+				IF Length(Path.Text) > 0 THEN
+					IF NOT (LastTracedText= Path.Text) THEN
+						
+						IF Length(Diagnostics)> 0 THEN
+							SET Diagnostics = Diagnostics || ' | '|| Path.Text ;
+							SET LastTracedText = Path.Text;							
+						ELSE 
+							SET Diagnostics = Path.Text ;
+							SET LastTracedText = Path.Text;
+						END IF;
+					END IF;
+				END IF;
+				MOVE Path Lastchild;
+				
+				DECLARE tempPath1 REFERENCE TO Path ;
+				DECLARE count, countPath INTEGER ;
+				DECLARE incrementer INTEGER 1;
+				
+				SET count = CARDINALITY(tempPath1.*[]) - 10;
+				IF count < 1 THEN 
+					IF Length(tempPath1.Text)> 0 THEN
+						SET DiagnosticText = DiagnosticText || ' | ' ||tempPath1.Text;
+					END IF;
+				END IF;
+				WHILE count > 1 DO
+					IF FIELDNAME(tempPath1.*[10+incrementer]) <> 'Insert' THEN
+						IF EXISTS(tempPath1.*[10+incrementer].Insert[]) THEN 
+							FOR Insert1 AS tempPath1.*[10+incrementer].Insert[] DO 
+								IF Length(Insert1.Text)> 0 THEN
+									SET DiagnosticText = DiagnosticText || ' | ' ||Insert1.Text;
+								END IF;
+							END FOR;
+						END IF;
+					ELSEIF FIELDNAME(tempPath1.*[10+incrementer]) = 'Insert' THEN
+						IF Length(tempPath1.*[10+incrementer].Text)> 0 THEN
+							SET DiagnosticText = DiagnosticText || ' | ' ||tempPath1.*[10+incrementer].Text;
+						END IF;
+					END IF;
+					SET incrementer = incrementer + 1;	
+					SET count = count -1 ;					
+				END WHILE;
+			END WHILE;
+
+			SET ErrorText = SPACE(16)|| 'NodeName:: ' || ErrorSource ||SPACE(16)|| 'Text:: ' || Diagnostics ||SPACE(16)||	'BIPMessage:: ' ||BIPMessage ||SPACE(16)||
+							'Detail:: ' || DiagnosticText ;
+			SET ErrorText = REPLACE(ErrorText,'<','{');
+			SET ErrorText = REPLACE(ErrorText,'>','}');
+			SET Width = Width + 1;
+			MOVE Path TO InputExceptionList.*[Width];
+		END WHILE;
+		SET Environment.Variables.ExceptionData.ErrorCode = BIPMessage ;
+		SET Environment.Variables.ExceptionData.ErrorDesc = LastTracedText ;
+		SET Environment.Variables.ExceptionData.SEVERITY = LastTracedSeverity ;
+		SET Environment.Variables.ExceptionData.ErrorCategory = ErrorType;
+		SET Environment.Variables.ExceptionData.ERROR_TYPE = ErrorType;
+		SET ExceptionMsg = ' ErrorText: ' || ErrorText ;
+	END;
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;

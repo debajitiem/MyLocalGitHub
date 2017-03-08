@@ -1,0 +1,14 @@
+Mar 16, 2015 9:38:52 AM com.ibm.etools.mft.eou.wizards.EouWizard logAction
+INFO: 
+ +++++++++++++++++++++++++++++++++++ task trace +++++++++++++++++++++++++++++++++++++++++++++
+TIMESTAMP [Mon Mar 16 09:38:52 IST 2015]
+
+Mar 16, 2015 9:38:52 AM com.ibm.etools.mft.eou.wizards.EouWizard logAction
+INFO: Creating the projects in the workspace.
+Mar 16, 2015 9:38:52 AM com.ibm.etools.mft.eou.wizards.EouWizard logAction
+INFO: The above task succeeded
+
+ Collected output from task >
+Stdout: []
+
+ Stderr: []

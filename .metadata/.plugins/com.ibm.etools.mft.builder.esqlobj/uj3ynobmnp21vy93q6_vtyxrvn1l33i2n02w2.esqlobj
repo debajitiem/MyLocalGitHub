@@ -1,0 +1,53 @@
+CREATE COMPUTE MODULE WSIB_ACES_ExceptionHandling_SubFlow_Compute
+	CREATE FUNCTION Main() RETURNS BOOLEAN
+	BEGIN
+		CALL CopyMessageHeaders();
+		CALL CopyEntireMessage();
+		
+		DECLARE lf CHARACTER; 
+		DECLARE rc3,rc4 BOOLEAN;
+		DECLARE tempVar BLOB ;
+		DECLARE tempChar,MessageFlowLabel,errorLoggerAppender, errorLogLevel   CHARACTER '' ;
+		
+		SET lf = CAST( x'0D' AS CHAR CCSID 1208);
+		CALL initErrorLog4j(ConfigFileLoc) INTO rc3;
+		IF rc3 = TRUE THEN
+			SET MessageFlowLabel = InputRoot.MQRFH2.usr.MessageFlowLabel;
+	        SET errorLoggerAppender = InputRoot.MQRFH2.usr.errorLoggerAppender ;
+	        SET errorLogLevel = InputRoot.MQRFH2.usr.errorLogLevel;
+	        SET Environment.Variable.EmailFlag = InputRoot.MQRFH2.usr.emailFlag ;
+																			
+			SET tempChar = CAST(ASBITSTREAM(InputRoot.XMLNSC 
+	           						CCSID InputRoot.Properties.CodedCharSetId 
+	           						ENCODING InputRoot.Properties.Encoding) 
+	           						AS CHARACTER 
+	           						CCSID InputRoot.Properties.CodedCharSetId 
+	           						ENCODING InputRoot.Properties.Encoding);
+            SET Environment.Variables.Log4j.LogText =
+            COALESCE(InputRoot.XMLNSC.ExceptionHdr.ExceptionTime ||' [START]'||tempChar||'[END]', 'Blank Value');
+	           
+	 		CALL Errorlog4j_1_1(MessageFlowLabel,errorLoggerAppender,errorLogLevel,Environment.Variables.Log4j.LogText) INTO rc4;
+		ELSE 
+			THROW USER EXCEPTION MESSAGE 9999 VALUES ('ConfigFile Initialization Failed');
+		END IF ; 
+		IF rc4 = FALSE THEN
+			THROW USER EXCEPTION MESSAGE 9998 VALUES ('File Logging Failed for LoggerAppender' || errorLoggerAppender);
+		END IF ;
+		RETURN FALSE;
+	END;
+
+	CREATE PROCEDURE CopyMessageHeaders() BEGIN
+		DECLARE I INTEGER 1;
+		DECLARE J INTEGER;
+		SET J = CARDINALITY(InputRoot.*[]);
+		WHILE I < J DO
+			SET OutputRoot.*[I] = InputRoot.*[I];
+			SET I = I + 1;
+		END WHILE;
+	END;
+
+	CREATE PROCEDURE CopyEntireMessage() BEGIN
+		SET OutputRoot = InputRoot;
+	END;
+
+END MODULE;

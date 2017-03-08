@@ -1,0 +1,4 @@
+CREATE PROCEDURE deleteCache( IN P1 CHARACTER, IN P2 CHARACTER )
+RETURNS BOOLEAN
+LANGUAGE JAVA
+EXTERNAL NAME "com.ibm.cacheHelper.GlobalCache.deleteCache";
