@@ -2,7 +2,7 @@
 <project name="project" default="run">
   <target name="run" description="">
     <property name="toolkit.home" value="C:\Program Files\IBM\IntegrationToolkit90" />
-    <property name="src" value="C:\Users\user\Documents\GitHub\MyLocalGitHub" />
+    <property name="src" value="C:\Users\user\.jenkins\workspace\Test" />
     <property name="target" value="${src}" />
     <property name="bar.name" value="${target}\TestFlow.bar" />
    <!-- <property name="bar.properties.name" value=
@@ -13,6 +13,7 @@
  
   <target name="build">
      <echo message="Building the Message Broker Project @ ${src}" />
+     <echo message="Building the Message Broker Project @ ${toolkit.home}" />
      <exec executable="${toolkit.home}\mqsicreatebar.exe" spawn="false">
         <arg value="-data" />
             <arg value="${src}" />
@@ -21,7 +22,9 @@
         <!-- List all the message flow projects -->
         <arg value="-a" />
             <arg value="Test" />
-       
+        <arg value="-trace" />   
+        <arg value="-v" />
+            <arg value="Trace.logs" />
  
      </exec>
   </target>
