@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="project" default="run">
+  <target name="run" description="">
+    <property name="toolkit.home" value="C:\Program Files\IBM\IntegrationToolkit90" />
+    <property name="src" value="C:\Users\user\Documents\GitHub\MyLocalGitHub" />
+    <property name="target" value="${src}" />
+    <property name="bar.name" value="${target}\TestFlow.bar" />
+   <!-- <property name="bar.properties.name" value=
+        "${ant.bars.basedir}\brokerXML.properties" /> -->
+    
+    <antcall target="build" />
+  </target>
+ 
+  <target name="build">
+     <echo message="Building the Message Broker Project @ ${src}" />
+     <exec executable="${toolkit.home}\mqsicreatebar.exe" spawn="false">
+        <arg value="-data" />
+            <arg value="${src}" />
+        <arg value="-b" />
+            <arg value="${bar.name}" />
+        <!-- List all the message flow projects -->
+        <arg value="-k" />
+            <arg value="Test" />
+        <arg value="-k" />
+            <arg value="Test" />
+ 
+     </exec>
+  </target>
+ 
+  <!--
+    Target to build the broker archive using mqsiapplybaroverride
+  -->
+  <target name="modifybar" depends="build">
+    <echo message="Applying overrides in Broker Archive file - ${bar.name} " />
+    <echo
+      message="${toolkit.home}\mqsiapplybaroverride.exe 
+            -b  ${bar.name} -p ${bar.properties.name}" />
+    <exec executable="${toolkit.home}\mqsiapplybaroverride.exe" spawn="false">
+      <arg value="-b" />
+      <arg value="${bar.name}" />
+      <arg value="-p" />
+      <arg value="${bar.properties.name}" />
+    </exec>
+    <echo message="Completed apply overrides in Broker Archive file - ${bar.name}" />
+  </target>
+ 
+</project>
